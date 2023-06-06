@@ -4,13 +4,12 @@ import process from 'node:process';
 import contentDisposition from 'content-disposition';
 import archiveType from '@xhmikosr/archive-type';
 import decompress from '@xhmikosr/decompress';
+import defaults from 'defaults';
 import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
 import getStream from 'get-stream';
 import got from 'got';
-// TODO replace with `defaults` package when we drop Node.js < 16 support
-import mergeOptions from 'merge-options';
 import {pEvent} from 'p-event';
 
 const getExtFromMime = response => {
@@ -66,7 +65,7 @@ const download = (uri, output, options) => {
 		decompress: {},
 	};
 
-	options = mergeOptions(defaultOptions, options);
+	options = defaults(options, defaultOptions);
 
 	const stream = got.stream(uri, options.got);
 
