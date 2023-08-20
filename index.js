@@ -1,3 +1,4 @@
+import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -10,7 +11,6 @@ import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
 import getStream from 'get-stream';
 import got from 'got';
-import {pEvent} from 'p-event';
 
 const getExtFromMime = response => {
 	const header = response.headers['content-type'];
@@ -67,12 +67,20 @@ const download = (uri, output, options) => {
 
 	options = defaults(options, defaultOptions);
 
-	const stream = got.stream(uri, options.got);
+	const gotStream = got.stream(uri, options.got);
 
-	const promise = pEvent(stream, 'response')
+	const filterEvents = async (stream, type) => {
+		for await (const [message] of events.on(stream, type)) {
+			if (message) {
+				return message;
+			}
+		}
+	};
+
+	const promise = filterEvents(gotStream, 'response')
 		.then(response => {
 			const encoding = options.got.responseType === 'buffer' ? 'buffer' : options.got.encoding;
-			return Promise.all([getStream(stream, {encoding}), response]);
+			return Promise.all([getStream(gotStream, {encoding}), response]);
 		})
 		.then(async ([data, response]) => {
 			const hasArchiveData = options.extract && await archiveType(data);
@@ -95,10 +103,10 @@ const download = (uri, output, options) => {
 		});
 
 	// eslint-disable-next-line unicorn/no-thenable
-	stream.then = promise.then.bind(promise);
-	stream.catch = promise.catch.bind(promise);
+	gotStream.then = promise.then.bind(promise);
+	gotStream.catch = promise.catch.bind(promise);
 
-	return stream;
+	return gotStream;
 };
 
 export default download;

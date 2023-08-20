@@ -47,8 +47,7 @@
 		"file-type": "^18.7.0",
 		"filenamify": "^6.0.0",
 		"get-stream": "^6.0.1",
-		"got": "^13.0.0",
-		"p-event": "^6.0.0"
+		"got": "^13.0.0"
 	},
 	"devDependencies": {
 		"ava": "^5.3.1",
