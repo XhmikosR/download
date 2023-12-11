@@ -49,6 +49,14 @@ const getFilename = async (response, data) => {
 	return filename;
 };
 
+const filterEvents = async (name, listener) => {
+	for await (const [message] of events.on(name, listener)) {
+		if (message) {
+			return message;
+		}
+	}
+};
+
 const download = (uri, output, options) => {
 	if (typeof output === 'object') {
 		options = output;
@@ -67,20 +75,12 @@ const download = (uri, output, options) => {
 
 	options = defaults(options, defaultOptions);
 
-	const gotStream = got.stream(uri, options.got);
+	const stream = got.stream(uri, options.got);
 
-	const filterEvents = async (stream, type) => {
-		for await (const [message] of events.on(stream, type)) {
-			if (message) {
-				return message;
-			}
-		}
-	};
-
-	const promise = filterEvents(gotStream, 'response')
+	const promise = filterEvents(stream, 'response')
 		.then(response => {
 			const encoding = options.got.responseType === 'buffer' ? 'buffer' : options.got.encoding;
-			return Promise.all([getStream(gotStream, {encoding}), response]);
+			return Promise.all([getStream(stream, {encoding}), response]);
 		})
 		.then(async ([data, response]) => {
 			const hasArchiveData = options.extract && await archiveType(data);
@@ -103,10 +103,10 @@ const download = (uri, output, options) => {
 		});
 
 	// eslint-disable-next-line unicorn/no-thenable
-	gotStream.then = promise.then.bind(promise);
-	gotStream.catch = promise.catch.bind(promise);
+	stream.then = promise.then.bind(promise);
+	stream.catch = promise.catch.bind(promise);
 
-	return gotStream;
+	return stream;
 };
 
 export default download;
