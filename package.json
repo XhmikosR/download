@@ -3,7 +3,10 @@
 	"version": "14.0.0",
 	"description": "Download and extract files",
 	"license": "MIT",
-	"repository": "XhmikosR/download",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/XhmikosR/download.git"
+	},
 	"publishConfig": {
 		"access": "public"
 	},
@@ -39,8 +42,8 @@
 		"url"
 	],
 	"dependencies": {
-		"@xhmikosr/archive-type": "^6.0.1",
-		"@xhmikosr/decompress": "^9.0.1",
+		"@xhmikosr/archive-type": "^7.0.0",
+		"@xhmikosr/decompress": "^10.0.0",
 		"content-disposition": "^0.5.4",
 		"defaults": "^3.0.0",
 		"ext-name": "^5.0.0",
