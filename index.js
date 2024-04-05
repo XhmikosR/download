@@ -78,7 +78,11 @@ const download = (uri, output, options) => {
 	const stream = got.stream(uri, options.got);
 
 	const promise = filterEvents(stream, 'response')
-		.then(response => Promise.all([getStreamAsBuffer(stream), response]))
+		.then(async response => {
+			let data = await getStreamAsBuffer(stream);
+			data = options.got.encoding === 'buffer' ? data : data.toString(options.got.encoding);
+			return Promise.all([data, response]);
+		})
 		.then(async ([data, response]) => {
 			const hasArchiveData = options.extract && await archiveType(data);
 
