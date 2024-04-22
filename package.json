@@ -43,7 +43,7 @@
 	],
 	"dependencies": {
 		"@xhmikosr/archive-type": "^7.0.0",
-		"@xhmikosr/decompress": "^10.0.1",
+		"@xhmikosr/decompress": "github:XhmikosR/decompress#xmr/dev",
 		"content-disposition": "^0.5.4",
 		"defaults": "^3.0.0",
 		"ext-name": "^5.0.0",
