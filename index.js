@@ -12,14 +12,11 @@ import filenamify from 'filenamify';
 import getStream from 'get-stream';
 import got from 'got';
 
-const defaultOptions = {
-	got: {
-		responseType: 'buffer',
-		https: {
-			rejectUnauthorized: process.env.npm_config_strict_ssl !== 'false',
-		},
+const defaultGotOptions = {
+	responseType: 'buffer',
+	https: {
+		rejectUnauthorized: process.env.npm_config_strict_ssl !== 'false',
 	},
-	decompress: {},
 };
 
 const getExtFromMime = response => {
@@ -73,7 +70,11 @@ const download = (uri, output, options) => {
 		output = null;
 	}
 
-	options = defaults(options, defaultOptions);
+	options = {
+		...options,
+		got: defaults(options?.got, defaultGotOptions),
+		decompress: options?.decompress ?? {},
+	};
 
 	const stream = got.stream(uri, options.got);
 
