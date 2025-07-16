@@ -8,6 +8,7 @@ import getStream from 'get-stream';
 import isZip from 'is-zip';
 import nock from 'nock';
 import {pathExists} from 'path-exists';
+import decompressUnzip from '@xhmikosr/decompress-unzip';
 import download from './index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -74,6 +75,12 @@ test('save file', async t => {
 
 test('extract file', async t => {
 	await download('http://foo.bar/foo.zip', __dirname, {extract: true});
+	t.true(await pathExists(path.join(__dirname, 'file.txt')));
+	await removeDir(path.join(__dirname, 'file.txt'));
+});
+
+test('extract file with decompress plugin', async t => {
+	await download('http://foo.bar/foo.zip', __dirname, {extract: true, decompress: {plugins: [decompressUnzip()]}});
 	t.true(await pathExists(path.join(__dirname, 'file.txt')));
 	await removeDir(path.join(__dirname, 'file.txt'));
 });
