@@ -5,7 +5,6 @@ import process from 'node:process';
 import contentDisposition from 'content-disposition';
 import archiveType from '@xhmikosr/archive-type';
 import decompress from '@xhmikosr/decompress';
-import defaults from 'defaults';
 import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
@@ -72,7 +71,7 @@ const download = (uri, output, options) => {
 
 	options = {
 		...options,
-		got: defaults(options?.got, defaultGotOptions),
+		got: {...structuredClone(defaultGotOptions), ...options?.got},
 		decompress: options?.decompress ?? {},
 	};
 
