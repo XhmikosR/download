@@ -43,13 +43,13 @@
 	],
 	"dependencies": {
 		"@xhmikosr/archive-type": "^7.1.0",
-		"@xhmikosr/decompress": "^10.2.0",
+		"@xhmikosr/decompress": "github:XhmikosR/decompress#xmr/deps",
 		"content-disposition": "^0.5.4",
 		"defaults": "^2.0.2",
 		"ext-name": "^5.0.0",
 		"file-type": "^20.5.0",
 		"filenamify": "^6.0.0",
-		"get-stream": "^6.0.1",
+		"get-stream": "^8.0.1",
 		"got": "^13.0.0"
 	},
 	"devDependencies": {

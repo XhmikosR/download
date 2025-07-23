@@ -9,11 +9,10 @@ import defaults from 'defaults';
 import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
-import getStream from 'get-stream';
+import {getStreamAsBuffer} from 'get-stream';
 import got from 'got';
 
 const defaultGotOptions = {
-	responseType: 'buffer',
 	https: {
 		rejectUnauthorized: process.env.npm_config_strict_ssl !== 'false',
 	},
@@ -79,10 +78,7 @@ const download = (uri, output, options) => {
 	const stream = got.stream(uri, options.got);
 
 	const promise = filterEvents(stream, 'response')
-		.then(response => {
-			const encoding = options.got.responseType === 'buffer' ? 'buffer' : options.got.encoding;
-			return Promise.all([getStream(stream, {encoding}), response]);
-		})
+		.then(response => Promise.all([getStreamAsBuffer(stream), response]))
 		.then(async ([data, response]) => {
 			const hasArchiveData = options.extract && await archiveType(data);
 
