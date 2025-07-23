@@ -1,4 +1,4 @@
-# download [![CI](https://github.com/XhmikosR/download/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/XhmikosR/download/actions/workflows/ci.yml)
+# download [![npm version](https://img.shields.io/npm/v/@xhmikosr/downloader?logo=npm&logoColor=fff)](https://www.npmjs.com/package/@xhmikosr/downloader) [![CI Status](https://img.shields.io/github/actions/workflow/status/XhmikosR/download/ci.yml?branch=master&label=CI&logo=github)](https://github.com/XhmikosR/download/actions/workflows/ci.yml?query=branch%3Amaster)
 
 > Download and extract files
 
