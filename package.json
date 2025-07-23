@@ -49,7 +49,7 @@
 		"ext-name": "^5.0.0",
 		"file-type": "^20.5.0",
 		"filenamify": "^6.0.0",
-		"get-stream": "^6.0.1",
+		"get-stream": "^8.0.1",
 		"got": "^13.0.0"
 	},
 	"devDependencies": {
