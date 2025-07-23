@@ -7,7 +7,6 @@ import contentDisposition from 'content-disposition';
 import getStream from 'get-stream';
 import isZip from 'is-zip';
 import nock from 'nock';
-import {pathExists} from 'path-exists';
 import decompressUnzip from '@xhmikosr/decompress-unzip';
 import download from './index.js';
 
@@ -15,6 +14,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const removeDir = async dir => fs.rm(dir, {force: true, recursive: true});
+
+const pathExists = async path => {
+	try {
+		await fs.access(path);
+		return true;
+	} catch {
+		return false;
+	}
+};
 
 test.before(() => {
 	nock('http://foo.bar')
