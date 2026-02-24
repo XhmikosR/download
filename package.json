@@ -42,7 +42,7 @@
 		"url"
 	],
 	"dependencies": {
-		"@xhmikosr/archive-type": "^8.0.0",
+		"@xhmikosr/archive-type": "^8.0.1",
 		"@xhmikosr/decompress": "^11.0.2",
 		"content-disposition": "^1.0.1",
 		"defaults": "^2.0.2",
