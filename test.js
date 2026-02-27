@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'ava';
 import contentDisposition from 'content-disposition';
-import getStream from 'get-stream';
+import {getStreamAsBuffer} from 'get-stream';
 import isZip from 'is-zip';
 import nock from 'nock';
 import decompressUnzip from '@xhmikosr/decompress-unzip';
@@ -57,7 +57,12 @@ test.before(() => {
 });
 
 test('download as stream', async t => {
-	t.true(isZip(await getStream.buffer(download('http://foo.bar/foo.zip'))));
+	t.true(isZip(await getStreamAsBuffer(download('http://foo.bar/foo.zip'))));
+});
+
+test('download as text', async t => {
+	const data = await download('http://foo.bar/foo.js', {got: {responseType: 'text'}});
+	t.is(typeof data, 'string');
 });
 
 test('download as promise', async t => {
@@ -65,7 +70,7 @@ test('download as promise', async t => {
 });
 
 test('download a very large file', async t => {
-	const stream = await getStream.buffer(download('http://foo.bar/large.bin'));
+	const stream = await getStreamAsBuffer(download('http://foo.bar/large.bin'));
 	t.is(stream.length, 7_928_260);
 });
 

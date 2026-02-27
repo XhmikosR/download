@@ -9,7 +9,7 @@ import defaults from 'defaults';
 import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
-import getStream from 'get-stream';
+import getStream, {getStreamAsBuffer} from 'get-stream';
 import got from 'got';
 
 const defaultGotOptions = {
@@ -80,8 +80,8 @@ const download = (uri, output, options) => {
 
 	const promise = filterEvents(stream, 'response')
 		.then(response => {
-			const encoding = options.got.responseType === 'buffer' ? 'buffer' : options.got.encoding;
-			return Promise.all([getStream(stream, {encoding}), response]);
+			const streamData = options.got.responseType === 'buffer' ? getStreamAsBuffer(stream) : getStream(stream);
+			return Promise.all([streamData, response]);
 		})
 		.then(async ([data, response]) => {
 			const hasArchiveData = options.extract && await archiveType(data);
