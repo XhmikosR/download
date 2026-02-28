@@ -4,8 +4,8 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'ava';
 import contentDisposition from 'content-disposition';
+import {fileTypeFromBuffer} from 'file-type';
 import {getStreamAsBuffer} from 'get-stream';
-import isZip from 'is-zip';
 import nock from 'nock';
 import decompressUnzip from '@xhmikosr/decompress-unzip';
 import download from './index.js';
@@ -23,6 +23,11 @@ const pathExists = async path => {
 		return false;
 	}
 };
+
+async function isZip(input) {
+	const fileType = await fileTypeFromBuffer(input);
+	return fileType?.mime === 'application/zip';
+}
 
 test.before(() => {
 	nock('http://foo.bar')
@@ -57,7 +62,8 @@ test.before(() => {
 });
 
 test('download as stream', async t => {
-	t.true(isZip(await getStreamAsBuffer(download('http://foo.bar/foo.zip'))));
+	const data = await getStreamAsBuffer(download('http://foo.bar/foo.zip'));
+	t.true(await isZip(data));
 });
 
 test('download as text', async t => {
@@ -66,7 +72,8 @@ test('download as text', async t => {
 });
 
 test('download as promise', async t => {
-	t.true(isZip(await download('http://foo.bar/foo.zip')));
+	const data = await download('http://foo.bar/foo.zip');
+	t.true(await isZip(data));
 });
 
 test('download a very large file', async t => {
@@ -119,11 +126,13 @@ test('rename to valid filename', async t => {
 });
 
 test('follow redirects', async t => {
-	t.true(isZip(await download('http://foo.bar/redirect.zip')));
+	const data = await download('http://foo.bar/redirect.zip');
+	t.true(await isZip(data));
 });
 
 test('follow redirect to https', async t => {
-	t.true(isZip(await download('http://foo.bar/redirect-https.zip')));
+	const data = await download('http://foo.bar/redirect-https.zip');
+	t.true(await isZip(data));
 });
 
 test('handle query string', async t => {
