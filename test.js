@@ -1,4 +1,6 @@
+import {Buffer} from 'node:buffer';
 import {randomBytes} from 'node:crypto';
+import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -53,7 +55,13 @@ test.before(() => {
 		.get('/redirect-https.zip')
 		.reply(301, null, {location: 'https://foo.bar/foo-https.zip'})
 		.get('/filetype')
-		.replyWithFile(200, path.join(__dirname, 'fixture.zip'));
+		.replyWithFile(200, path.join(__dirname, 'fixture.zip'))
+		.get('/mime-single')
+		.reply(200, Buffer.from('id,name\n1,alice\n'), {'Content-Type': 'text/csv'})
+		.get('/mime-multiple')
+		.reply(200, Buffer.from('plain body'), {'Content-Type': 'text/plain'})
+		.get('/mime-none')
+		.reply(200, Buffer.from('plain body'), {'Content-Type': ''});
 
 	nock('https://foo.bar')
 		.persist()
@@ -116,6 +124,14 @@ test('extract file that is not compressed', async t => {
 	await removeDir(path.join(__dirname, 'foo.js'));
 });
 
+test('extract without output returns files', async t => {
+	const files = await download('http://foo.bar/foo.zip', {extract: true});
+	t.true(Array.isArray(files));
+	t.true(files.length > 0);
+	t.true(files.some(file => file.path === 'file.txt'));
+	await removeDir(path.join(__dirname, 'file.txt'));
+});
+
 test('error on 404', async t => {
 	await t.throwsAsync(
 		download('http://foo.bar/404'),
@@ -156,4 +172,41 @@ test('handle filename from file type', async t => {
 	await download('http://foo.bar/filetype', __dirname);
 	t.true(await pathExists(path.join(__dirname, 'filetype.zip')));
 	await removeDir(path.join(__dirname, 'filetype.zip'));
+});
+
+test.serial('handles falsy event payload in response listener', async t => {
+	const originalOn = events.on;
+	events.on = async function * () {
+		yield [undefined];
+	};
+
+	t.teardown(() => {
+		events.on = originalOn;
+	});
+
+	const data = await download('http://foo.bar/foo.js', {got: {responseType: 'text'}});
+	t.is(typeof data, 'string');
+
+	await removeDir(path.join(__dirname, 'foo.js'));
+});
+
+test('handle filename from mime type when file-type does not support it', async t => {
+	const csvData = Buffer.from('id,name\n1,alice\n');
+	t.is(await fileTypeFromBuffer(csvData), undefined);
+
+	await download('http://foo.bar/mime-single', __dirname);
+	t.true(await pathExists(path.join(__dirname, 'mime-single.csv')));
+	await removeDir(path.join(__dirname, 'mime-single.csv'));
+});
+
+test('do not add extension from mime type when ambiguous', async t => {
+	await download('http://foo.bar/mime-multiple', __dirname);
+	t.true(await pathExists(path.join(__dirname, 'mime-multiple')));
+	await removeDir(path.join(__dirname, 'mime-multiple'));
+});
+
+test('do not add extension when content type is missing', async t => {
+	await download('http://foo.bar/mime-none', __dirname);
+	t.true(await pathExists(path.join(__dirname, 'mime-none')));
+	await removeDir(path.join(__dirname, 'mime-none'));
 });
