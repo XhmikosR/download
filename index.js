@@ -63,7 +63,7 @@ const filterEvents = async (name, listener) => {
 	}
 };
 
-const download = (uri, output, options) => {
+const download = (uri, output, options = {}) => {
 	if (typeof output === 'object') {
 		options = output;
 		output = null;
@@ -71,8 +71,8 @@ const download = (uri, output, options) => {
 
 	options = {
 		...options,
-		got: {...defaultGotOptions, ...options?.got},
-		decompress: options?.decompress ?? {},
+		got: {...defaultGotOptions, ...options.got},
+		decompress: options.decompress ?? {},
 	};
 
 	const stream = got.stream(uri, options.got);
