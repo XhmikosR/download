@@ -5,7 +5,6 @@ import process from 'node:process';
 import contentDisposition from 'content-disposition';
 import archiveType from '@xhmikosr/archive-type';
 import decompress from '@xhmikosr/decompress';
-import defaults from 'defaults';
 import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
@@ -64,7 +63,7 @@ const filterEvents = async (name, listener) => {
 	}
 };
 
-const download = (uri, output, options) => {
+const download = (uri, output, options = {}) => {
 	if (typeof output === 'object') {
 		options = output;
 		output = null;
@@ -72,8 +71,8 @@ const download = (uri, output, options) => {
 
 	options = {
 		...options,
-		got: defaults(options?.got, defaultGotOptions),
-		decompress: options?.decompress ?? {},
+		got: {...defaultGotOptions, ...options.got},
+		decompress: options.decompress ?? {},
 	};
 
 	const stream = got.stream(uri, options.got);
