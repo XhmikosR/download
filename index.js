@@ -89,30 +89,28 @@ const download = (uri, output, options = {}) => {
 
 	const stream = got.stream(uri, options.got);
 
-	const promise = filterEvents(stream, 'response')
-		.then(response => {
-			const streamData = options.got.responseType === 'buffer' ? getStreamAsBuffer(stream) : getStream(stream);
-			return Promise.all([streamData, response]);
-		})
-		.then(async ([data, response]) => {
-			const hasArchiveData = options.extract && await archiveType(data);
+	const promise = (async () => {
+		const response = await filterEvents(stream, 'response');
+		const streamData = options.got.responseType === 'buffer' ? getStreamAsBuffer(stream) : getStream(stream);
+		const data = await streamData;
 
-			if (!output) {
-				return hasArchiveData ? decompress(data, options.decompress) : data;
-			}
+		const hasArchiveData = options.extract && await archiveType(data);
 
-			const filename = options.filename || filenamify(await getFilename(response, data));
-			const outputFilepath = path.join(output, filename);
+		if (!output) {
+			return hasArchiveData ? decompress(data, options.decompress) : data;
+		}
 
-			if (hasArchiveData) {
-				return decompress(data, path.dirname(outputFilepath), options.decompress);
-			}
+		const filename = options.filename || filenamify(await getFilename(response, data));
+		const outputFilepath = path.join(output, filename);
 
-			return fs
-				.mkdir(path.dirname(outputFilepath), {recursive: true})
-				.then(() => fs.writeFile(outputFilepath, data))
-				.then(() => data);
-		});
+		if (hasArchiveData) {
+			return decompress(data, path.dirname(outputFilepath), options.decompress);
+		}
+
+		await fs.mkdir(path.dirname(outputFilepath), {recursive: true});
+		await fs.writeFile(outputFilepath, data);
+		return data;
+	})();
 
 	// eslint-disable-next-line unicorn/no-thenable
 	stream.then = promise.then.bind(promise);
