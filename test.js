@@ -76,6 +76,11 @@ test('download as promise', async t => {
 	t.true(await isZip(data));
 });
 
+test('preserves default got options when user passes undefined', async t => {
+	const data = await download('http://foo.bar/foo.zip', {got: {responseType: undefined}});
+	t.true(await isZip(data));
+});
+
 test('download a very large file', async t => {
 	const stream = await getStreamAsBuffer(download('http://foo.bar/large.bin'));
 	t.is(stream.length, 7_928_260);
