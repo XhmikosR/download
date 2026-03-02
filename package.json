@@ -45,7 +45,6 @@
 		"@xhmikosr/archive-type": "^8.0.1",
 		"@xhmikosr/decompress": "^11.1.0",
 		"content-disposition": "^1.0.1",
-		"defaults": "^2.0.2",
 		"ext-name": "^5.0.0",
 		"file-type": "^21.3.0",
 		"filenamify": "^7.0.1",
