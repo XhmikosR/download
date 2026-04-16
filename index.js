@@ -55,8 +55,8 @@ const getFilename = async (response, data) => {
 	return filename;
 };
 
-const filterEvents = async (name, listener) => {
-	for await (const [message] of events.on(name, listener)) {
+const filterEvents = async (emitter, event) => {
+	for await (const [message] of events.on(emitter, event)) {
 		if (message) {
 			return message;
 		}
