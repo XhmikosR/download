@@ -10,7 +10,7 @@ import test from 'ava';
 import {fileTypeFromBuffer} from 'file-type';
 import nock from 'nock';
 import decompressUnzip from '@xhmikosr/decompress-unzip';
-import download from './index.js';
+import download, {downloadAsStream} from './index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -79,7 +79,7 @@ test.before(() => {
 });
 
 test('download as stream', async t => {
-	const data = await buffer(download('http://foo.bar/foo.zip'));
+	const data = await buffer(downloadAsStream('http://foo.bar/foo.zip'));
 	t.true(await isZip(data));
 });
 
@@ -99,45 +99,53 @@ test('preserves default got options when the user passes undefined', async t => 
 });
 
 test('download a very large file', async t => {
-	const data = await buffer(download('http://foo.bar/large.bin'));
+	const data = await buffer(downloadAsStream('http://foo.bar/large.bin'));
 	t.is(data.length, 7_928_260);
 });
 
 test('download and rename file', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/foo.zip', output, {filename: 'bar.zip'});
+	await download('http://foo.bar/foo.zip', {dest: output, filename: 'bar.zip'});
 	t.true(await pathExists(path.join(output, 'bar.zip')));
 });
 
 test('save file', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/foo.zip', output);
+	await download('http://foo.bar/foo.zip', {dest: output});
 	t.true(await pathExists(path.join(output, 'foo.zip')));
 });
 
 test('extract file', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/foo.zip', output, {extract: true});
+	await download('http://foo.bar/foo.zip', {dest: output, extract: true});
 	t.true(await pathExists(path.join(output, 'file.txt')));
 });
 
 test('extract file with decompress plugin', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/foo.zip', output, {extract: true, decompress: {plugins: [decompressUnzip()]}});
+	await download('http://foo.bar/foo.zip', {dest: output, extract: true, decompress: {plugins: [decompressUnzip()]}});
 	t.true(await pathExists(path.join(output, 'file.txt')));
 });
 
 test('extract file that is not compressed', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/foo.js', output, {extract: true});
+	await download('http://foo.bar/foo.js', {dest: output, extract: true});
 	t.true(await pathExists(path.join(output, 'foo.js')));
 });
 
-test('extract without output returns files', async t => {
+test('extract without dest returns files', async t => {
 	const files = await download('http://foo.bar/foo.zip', {extract: true});
 	t.true(Array.isArray(files));
 	t.true(files.length > 0);
 	t.true(files.some(file => file.path === 'file.txt'));
+});
+
+test('reject the old positional dest argument', async t => {
+	await t.throwsAsync(download('http://foo.bar/foo.zip', 'dist'), {instanceOf: TypeError});
+});
+
+test('downloadAsStream rejects unsupported options', t => {
+	t.throws(() => downloadAsStream('http://foo.bar/foo.zip', {dest: __dirname}), {instanceOf: TypeError});
 });
 
 test('error on 404', async t => {
@@ -150,7 +158,7 @@ test('error on 404', async t => {
 
 test('rename to valid filename', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/foo*bar.zip', output);
+	await download('http://foo.bar/foo*bar.zip', {dest: output});
 	t.true(await pathExists(path.join(output, 'foo!bar.zip')));
 });
 
@@ -166,19 +174,19 @@ test('follow redirect to https', async t => {
 
 test('handle query string', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/querystring.zip?param=value', output);
+	await download('http://foo.bar/querystring.zip?param=value', {dest: output});
 	t.true(await pathExists(path.join(output, 'querystring.zip')));
 });
 
 test('use filename from content disposition header', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/dispo-filename', output);
+	await download('http://foo.bar/dispo-filename', {dest: output});
 	t.true(await pathExists(path.join(output, 'from-header.txt')));
 });
 
 test('handle filename from file type', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/filetype', output);
+	await download('http://foo.bar/filetype', {dest: output});
 	t.true(await pathExists(path.join(output, 'filetype.zip')));
 });
 
@@ -201,24 +209,24 @@ test('handle filename from mime type when file-type does not support it', async 
 	t.is(await fileTypeFromBuffer(csvData), undefined);
 
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/mime-single', output);
+	await download('http://foo.bar/mime-single', {dest: output});
 	t.true(await pathExists(path.join(output, 'mime-single.csv')));
 });
 
 test('handle filename from mime type with content-type parameters', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/mime-charset', output);
+	await download('http://foo.bar/mime-charset', {dest: output});
 	t.true(await pathExists(path.join(output, 'mime-charset.csv')));
 });
 
 test('do not add extension from mime type when ambiguous', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/mime-multiple', output);
+	await download('http://foo.bar/mime-multiple', {dest: output});
 	t.true(await pathExists(path.join(output, 'mime-multiple')));
 });
 
 test('do not add extension when content type is missing', async t => {
 	const output = await makeTempDir(t);
-	await download('http://foo.bar/mime-none', output);
+	await download('http://foo.bar/mime-none', {dest: output});
 	t.true(await pathExists(path.join(output, 'mime-none')));
 });
