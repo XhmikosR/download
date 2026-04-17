@@ -4,13 +4,11 @@
 
 *See [download-cli](https://github.com/kevva/download-cli) for the command-line version.*
 
-
 ## Install
 
 ```sh
 npm install @xhmikosr/downloader
 ```
-
 
 ## Usage
 
@@ -23,25 +21,24 @@ import download from '@xhmikosr/downloader';
 
 	fs.writeFileSync('dist/foo.jpg', await download('http://unicorn.com/foo.jpg'));
 
-	download('unicorn.com/foo.jpg').pipe(fs.createWriteStream('dist/foo.jpg'));
+	download('http://unicorn.com/foo.jpg').pipe(fs.createWriteStream('dist/foo.jpg'));
 
 	await Promise.all([
-		'unicorn.com/foo.jpg',
-		'cats.com/dancing.gif'
+		'http://unicorn.com/foo.jpg',
+		'http://cats.com/dancing.gif'
 	].map(url => download(url, 'dist')));
 })();
 ```
 
 ### Proxies
 
-To work with proxies, read the [`got documentation`](https://github.com/sindresorhus/got#proxies).
-
+To work with proxies, read the [`got documentation`](https://github.com/sindresorhus/got/blob/main/documentation/tips.md#proxying).
 
 ## API
 
 ### download(url, destination?, options?)
 
-Returns both a `Promise<Buffer>` and a [Duplex stream](https://nodejs.org/api/stream.html#stream_class_stream_duplex) with [additional events](https://github.com/sindresorhus/got#streams-1).
+Returns both a `Promise<Buffer>` and a [Duplex stream](https://nodejs.org/api/stream.html#stream_class_stream_duplex) with [additional events](https://github.com/sindresorhus/got/blob/main/documentation/3-streams.md#events).
 
 #### url
 
@@ -53,7 +50,7 @@ URL to download.
 
 Type: `string`
 
-Path to where your file will be written.
+Directory to save the file to.
 
 #### options
 
@@ -67,14 +64,14 @@ Same options as [`got`](https://github.com/sindresorhus/got#options).
 
 Same options as [`decompress`](https://github.com/XhmikosR/decompress#options).
 
-##### extract
+##### options.extract
 
 * Type: `boolean`
 * Default: `false`
 
 If set to `true`, try extracting the file using [`decompress`](https://github.com/XhmikosR/decompress).
 
-##### filename
+##### options.filename
 
 Type: `string`
 
