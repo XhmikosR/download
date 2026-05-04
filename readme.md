@@ -14,19 +14,22 @@ npm install @xhmikosr/downloader
 
 ```js
 import fs from 'node:fs';
-import download from '@xhmikosr/downloader';
+import download, {downloadAsStream} from '@xhmikosr/downloader';
 
 (async () => {
-	await download('http://unicorn.com/foo.jpg', 'dist');
+	await download('http://unicorn.com/foo.jpg', {dest: 'dist'});
 
 	fs.writeFileSync('dist/foo.jpg', await download('http://unicorn.com/foo.jpg'));
 
-	download('http://unicorn.com/foo.jpg').pipe(fs.createWriteStream('dist/foo.jpg'));
+	const text = await download('http://unicorn.com/foo.txt', {got: {responseType: 'text'}});
+	console.log(text);
+
+	downloadAsStream('http://unicorn.com/foo.jpg').pipe(fs.createWriteStream('dist/foo.jpg'));
 
 	await Promise.all([
 		'http://unicorn.com/foo.jpg',
 		'http://cats.com/dancing.gif'
-	].map(url => download(url, 'dist')));
+	].map(url => download(url, {dest: 'dist'})));
 })();
 ```
 
@@ -36,9 +39,13 @@ To work with proxies, read the [`got documentation`](https://github.com/sindreso
 
 ## API
 
-### download(url, destination?, options?)
+### download(url, options?)
 
-Returns both a `Promise<Buffer>` and a [Duplex stream](https://nodejs.org/api/stream.html#stream_class_stream_duplex) with [additional events](https://github.com/sindresorhus/got/blob/main/documentation/3-streams.md#events).
+Returns a Promise resolving to the downloaded data (or extracted file list when `extract` is enabled and no `dest` is provided).
+
+### downloadAsStream(url, options?)
+
+Returns a [Duplex stream](https://nodejs.org/api/stream.html#stream_class_stream_duplex) with [additional events](https://github.com/sindresorhus/got/blob/main/documentation/3-streams.md#events).
 
 #### url
 
@@ -46,13 +53,13 @@ Type: `string`
 
 URL to download.
 
-#### destination
+#### options
+
+##### options.dest
 
 Type: `string`
 
 Directory to save the file to.
-
-#### options
 
 ##### options.got
 

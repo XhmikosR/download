@@ -75,47 +75,46 @@ const mergeDefinedOptions = (defaults, overrides = {}) => {
 	return merged;
 };
 
-const download = (uri, output, options = {}) => {
-	if (typeof output === 'object') {
-		options = output;
-		output = null;
-	}
-
-	options = {
+const buildStream = (uri, options) => {
+	const mergedOptions = {
 		...options,
 		got: mergeDefinedOptions(defaultGotOptions, options.got),
 		decompress: options.decompress ?? {},
 	};
 
-	const stream = got.stream(uri, options.got);
+	return {
+		stream: got.stream(uri, mergedOptions.got),
+		options: mergedOptions,
+	};
+};
 
-	const promise = (async () => {
-		const response = await filterEvents(stream, 'response');
-		const streamData = options.got.responseType === 'buffer' ? getStreamAsBuffer(stream) : getStream(stream);
-		const data = await streamData;
+const download = async (uri, options = {}) => {
+	const {stream, options: options_} = buildStream(uri, options);
 
-		const hasArchiveData = options.extract && await archiveType(data);
+	const response = await filterEvents(stream, 'response');
+	const streamData = options_.got.responseType === 'buffer' ? getStreamAsBuffer(stream) : getStream(stream);
+	const data = await streamData;
 
-		if (!output) {
-			return hasArchiveData ? decompress(data, options.decompress) : data;
-		}
+	const hasArchiveData = options_.extract && await archiveType(data);
 
-		const filename = options.filename || filenamify(await getFilename(response, data));
-		const outputFilepath = path.join(output, filename);
+	if (!options_.dest) {
+		return hasArchiveData ? decompress(data, options_.decompress) : data;
+	}
 
-		if (hasArchiveData) {
-			return decompress(data, path.dirname(outputFilepath), options.decompress);
-		}
+	const filename = options_.filename || filenamify(await getFilename(response, data));
+	const outputFilepath = path.join(options_.dest, filename);
 
-		await fs.mkdir(path.dirname(outputFilepath), {recursive: true});
-		await fs.writeFile(outputFilepath, data);
-		return data;
-	})();
+	if (hasArchiveData) {
+		return decompress(data, path.dirname(outputFilepath), options_.decompress);
+	}
 
-	// eslint-disable-next-line unicorn/no-thenable
-	stream.then = promise.then.bind(promise);
-	stream.catch = promise.catch.bind(promise);
+	await fs.mkdir(path.dirname(outputFilepath), {recursive: true});
+	await fs.writeFile(outputFilepath, data);
+	return data;
+};
 
+export const downloadAsStream = (uri, options = {}) => {
+	const {stream} = buildStream(uri, options);
 	return stream;
 };
 
