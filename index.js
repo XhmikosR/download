@@ -25,7 +25,7 @@ const getExtFromMime = response => {
 		return null;
 	}
 
-	const exts = extName.mime(header);
+	const exts = extName.mime(header.split(';')[0].trim());
 
 	return exts.length === 1 ? exts[0].ext : null;
 };

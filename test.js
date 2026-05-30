@@ -57,6 +57,8 @@ test.before(() => {
 		.replyWithFile(200, path.join(__dirname, 'fixture.zip'))
 		.get('/mime-single')
 		.reply(200, Buffer.from('id,name\n1,alice\n'), {'Content-Type': 'text/csv'})
+		.get('/mime-charset')
+		.reply(200, Buffer.from('id,name\n1,alice\n'), {'Content-Type': 'text/csv; charset=utf-8'})
 		.get('/mime-multiple')
 		.reply(200, Buffer.from('plain body'), {'Content-Type': 'text/plain'})
 		.get('/mime-none')
@@ -197,6 +199,12 @@ test('handle filename from mime type when file-type does not support it', async 
 	await download('http://foo.bar/mime-single', __dirname);
 	t.true(await pathExists(path.join(__dirname, 'mime-single.csv')));
 	await removeDir(path.join(__dirname, 'mime-single.csv'));
+});
+
+test('handle filename from mime type with content-type parameters', async t => {
+	await download('http://foo.bar/mime-charset', __dirname);
+	t.true(await pathExists(path.join(__dirname, 'mime-charset.csv')));
+	await removeDir(path.join(__dirname, 'mime-charset.csv'));
 });
 
 test('do not add extension from mime type when ambiguous', async t => {
