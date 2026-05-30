@@ -5,7 +5,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'ava';
-import {parse} from 'content-disposition';
 import {fileTypeFromBuffer} from 'file-type';
 import {getStreamAsBuffer} from 'get-stream';
 import nock from 'nock';
@@ -42,9 +41,9 @@ test.before(() => {
 		.replyWithFile(200, __filename)
 		.get('/querystring.zip').query({param: 'value'})
 		.replyWithFile(200, path.join(__dirname, 'fixture.zip'))
-		.get('/dispo')
+		.get('/dispo-filename')
 		.replyWithFile(200, path.join(__dirname, 'fixture.zip'), {
-			'Content-Disposition': parse('dispo.zip'),
+			'Content-Disposition': 'attachment; filename="from-header.txt"',
 		})
 		.get('/foo*bar.zip')
 		.replyWithFile(200, path.join(__dirname, 'fixture.zip'))
@@ -162,10 +161,11 @@ test('handle query string', async t => {
 	await removeDir(path.join(__dirname, 'querystring.zip'));
 });
 
-test('handle content disposition', async t => {
-	await download('http://foo.bar/dispo', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'dispo.zip')));
-	await removeDir(path.join(__dirname, 'dispo.zip'));
+test('use filename from content disposition header', async t => {
+	await download('http://foo.bar/dispo-filename', __dirname);
+	t.true(await pathExists(path.join(__dirname, 'from-header.txt')));
+	t.false(await pathExists(path.join(__dirname, 'dispo-filename.zip')));
+	await removeDir(path.join(__dirname, 'from-header.txt'));
 });
 
 test('handle filename from file type', async t => {
