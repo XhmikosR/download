@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'ava';
-import contentDisposition from 'content-disposition';
+import {parse} from 'content-disposition';
 import {fileTypeFromBuffer} from 'file-type';
 import {getStreamAsBuffer} from 'get-stream';
 import nock from 'nock';
@@ -44,7 +44,7 @@ test.before(() => {
 		.replyWithFile(200, path.join(__dirname, 'fixture.zip'))
 		.get('/dispo')
 		.replyWithFile(200, path.join(__dirname, 'fixture.zip'), {
-			'Content-Disposition': contentDisposition('dispo.zip'),
+			'Content-Disposition': parse('dispo.zip'),
 		})
 		.get('/foo*bar.zip')
 		.replyWithFile(200, path.join(__dirname, 'fixture.zip'))

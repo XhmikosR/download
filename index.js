@@ -2,7 +2,7 @@ import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import contentDisposition from 'content-disposition';
+import {parse} from 'content-disposition';
 import archiveType from '@xhmikosr/archive-type';
 import decompress from '@xhmikosr/decompress';
 import extName from 'ext-name';
@@ -34,7 +34,7 @@ const getFilename = async (response, data) => {
 	const header = response.headers['content-disposition'];
 
 	if (header) {
-		const parsed = contentDisposition.parse(header);
+		const parsed = parse(header);
 
 		if (parsed.parameters?.filename) {
 			return parsed.parameters.filename;
