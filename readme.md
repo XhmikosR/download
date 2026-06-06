@@ -14,7 +14,7 @@ npm install @xhmikosr/downloader
 
 ```js
 import fs from 'node:fs';
-import download, {downloadAsStream} from '@xhmikosr/downloader';
+import {download, downloadAsStream} from '@xhmikosr/downloader';
 
 (async () => {
 	await download('http://unicorn.com/foo.jpg', {dest: 'dist'});
