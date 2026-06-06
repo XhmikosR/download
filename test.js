@@ -1,7 +1,8 @@
 import {Buffer} from 'node:buffer';
 import {randomBytes} from 'node:crypto';
 import events from 'node:events';
-import fs from 'node:fs/promises';
+import {access, mkdtemp, rm} from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import {buffer} from 'node:stream/consumers';
 import {fileURLToPath} from 'node:url';
@@ -14,11 +15,18 @@ import download from './index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const removeDir = async dir => fs.rm(dir, {force: true, recursive: true});
+const removeRecursive = async filePath => rm(filePath, {force: true, recursive: true});
+
+// Unique output dir per test so concurrent tests don't clash
+const makeTempDir = async t => {
+	const dir = await mkdtemp(path.join(os.tmpdir(), 'downloader-test-'));
+	t.teardown(() => removeRecursive(dir));
+	return dir;
+};
 
 const pathExists = async path => {
 	try {
-		await fs.access(path);
+		await access(path);
 		return true;
 	} catch {
 		return false;
@@ -85,44 +93,44 @@ test('download as promise', async t => {
 	t.true(await isZip(data));
 });
 
-test('preserves default got options when user passes undefined', async t => {
+test('preserves default got options when the user passes undefined', async t => {
 	const data = await download('http://foo.bar/foo.zip', {got: {responseType: undefined}});
 	t.true(await isZip(data));
 });
 
 test('download a very large file', async t => {
-	const stream = await buffer(download('http://foo.bar/large.bin'));
-	t.is(stream.length, 7_928_260);
+	const data = await buffer(download('http://foo.bar/large.bin'));
+	t.is(data.length, 7_928_260);
 });
 
 test('download and rename file', async t => {
-	await download('http://foo.bar/foo.zip', __dirname, {filename: 'bar.zip'});
-	t.true(await pathExists(path.join(__dirname, 'bar.zip')));
-	await removeDir(path.join(__dirname, 'bar.zip'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/foo.zip', output, {filename: 'bar.zip'});
+	t.true(await pathExists(path.join(output, 'bar.zip')));
 });
 
 test('save file', async t => {
-	await download('http://foo.bar/foo.zip', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'foo.zip')));
-	await removeDir(path.join(__dirname, 'foo.zip'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/foo.zip', output);
+	t.true(await pathExists(path.join(output, 'foo.zip')));
 });
 
 test('extract file', async t => {
-	await download('http://foo.bar/foo.zip', __dirname, {extract: true});
-	t.true(await pathExists(path.join(__dirname, 'file.txt')));
-	await removeDir(path.join(__dirname, 'file.txt'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/foo.zip', output, {extract: true});
+	t.true(await pathExists(path.join(output, 'file.txt')));
 });
 
 test('extract file with decompress plugin', async t => {
-	await download('http://foo.bar/foo.zip', __dirname, {extract: true, decompress: {plugins: [decompressUnzip()]}});
-	t.true(await pathExists(path.join(__dirname, 'file.txt')));
-	await removeDir(path.join(__dirname, 'file.txt'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/foo.zip', output, {extract: true, decompress: {plugins: [decompressUnzip()]}});
+	t.true(await pathExists(path.join(output, 'file.txt')));
 });
 
 test('extract file that is not compressed', async t => {
-	await download('http://foo.bar/foo.js', __dirname, {extract: true});
-	t.true(await pathExists(path.join(__dirname, 'foo.js')));
-	await removeDir(path.join(__dirname, 'foo.js'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/foo.js', output, {extract: true});
+	t.true(await pathExists(path.join(output, 'foo.js')));
 });
 
 test('extract without output returns files', async t => {
@@ -130,7 +138,6 @@ test('extract without output returns files', async t => {
 	t.true(Array.isArray(files));
 	t.true(files.length > 0);
 	t.true(files.some(file => file.path === 'file.txt'));
-	await removeDir(path.join(__dirname, 'file.txt'));
 });
 
 test('error on 404', async t => {
@@ -142,9 +149,9 @@ test('error on 404', async t => {
 });
 
 test('rename to valid filename', async t => {
-	await download('http://foo.bar/foo*bar.zip', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'foo!bar.zip')));
-	await removeDir(path.join(__dirname, 'foo!bar.zip'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/foo*bar.zip', output);
+	t.true(await pathExists(path.join(output, 'foo!bar.zip')));
 });
 
 test('follow redirects', async t => {
@@ -158,22 +165,21 @@ test('follow redirect to https', async t => {
 });
 
 test('handle query string', async t => {
-	await download('http://foo.bar/querystring.zip?param=value', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'querystring.zip')));
-	await removeDir(path.join(__dirname, 'querystring.zip'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/querystring.zip?param=value', output);
+	t.true(await pathExists(path.join(output, 'querystring.zip')));
 });
 
 test('use filename from content disposition header', async t => {
-	await download('http://foo.bar/dispo-filename', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'from-header.txt')));
-	t.false(await pathExists(path.join(__dirname, 'dispo-filename.zip')));
-	await removeDir(path.join(__dirname, 'from-header.txt'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/dispo-filename', output);
+	t.true(await pathExists(path.join(output, 'from-header.txt')));
 });
 
 test('handle filename from file type', async t => {
-	await download('http://foo.bar/filetype', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'filetype.zip')));
-	await removeDir(path.join(__dirname, 'filetype.zip'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/filetype', output);
+	t.true(await pathExists(path.join(output, 'filetype.zip')));
 });
 
 test.serial('handles falsy event payload in response listener', async t => {
@@ -188,33 +194,31 @@ test.serial('handles falsy event payload in response listener', async t => {
 
 	const data = await download('http://foo.bar/foo.js', {got: {responseType: 'text'}});
 	t.is(typeof data, 'string');
-
-	await removeDir(path.join(__dirname, 'foo.js'));
 });
 
 test('handle filename from mime type when file-type does not support it', async t => {
 	const csvData = Buffer.from('id,name\n1,alice\n');
 	t.is(await fileTypeFromBuffer(csvData), undefined);
 
-	await download('http://foo.bar/mime-single', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'mime-single.csv')));
-	await removeDir(path.join(__dirname, 'mime-single.csv'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/mime-single', output);
+	t.true(await pathExists(path.join(output, 'mime-single.csv')));
 });
 
 test('handle filename from mime type with content-type parameters', async t => {
-	await download('http://foo.bar/mime-charset', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'mime-charset.csv')));
-	await removeDir(path.join(__dirname, 'mime-charset.csv'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/mime-charset', output);
+	t.true(await pathExists(path.join(output, 'mime-charset.csv')));
 });
 
 test('do not add extension from mime type when ambiguous', async t => {
-	await download('http://foo.bar/mime-multiple', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'mime-multiple')));
-	await removeDir(path.join(__dirname, 'mime-multiple'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/mime-multiple', output);
+	t.true(await pathExists(path.join(output, 'mime-multiple')));
 });
 
 test('do not add extension when content type is missing', async t => {
-	await download('http://foo.bar/mime-none', __dirname);
-	t.true(await pathExists(path.join(__dirname, 'mime-none')));
-	await removeDir(path.join(__dirname, 'mime-none'));
+	const output = await makeTempDir(t);
+	await download('http://foo.bar/mime-none', output);
+	t.true(await pathExists(path.join(output, 'mime-none')));
 });
