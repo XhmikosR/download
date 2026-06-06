@@ -98,7 +98,7 @@ const buildStream = (uri, options) => {
 	};
 };
 
-const download = async (uri, options = {}) => {
+export const download = async (uri, options = {}) => {
 	const {stream, options: options_} = buildStream(uri, options);
 
 	const response = await filterEvents(stream, 'response');
@@ -135,5 +135,3 @@ export const downloadAsStream = (uri, options = {}) => {
 	const {stream} = buildStream(uri, options);
 	return stream;
 };
-
-export default download;

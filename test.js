@@ -10,7 +10,7 @@ import test from 'ava';
 import {fileTypeFromBuffer} from 'file-type';
 import nock from 'nock';
 import decompressUnzip from '@xhmikosr/decompress-unzip';
-import download, {downloadAsStream} from './index.js';
+import {download, downloadAsStream} from './index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
