@@ -3,10 +3,10 @@ import {randomBytes} from 'node:crypto';
 import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {buffer} from 'node:stream/consumers';
 import {fileURLToPath} from 'node:url';
 import test from 'ava';
 import {fileTypeFromBuffer} from 'file-type';
-import {getStreamAsBuffer} from 'get-stream';
 import nock from 'nock';
 import decompressUnzip from '@xhmikosr/decompress-unzip';
 import download from './index.js';
@@ -71,7 +71,7 @@ test.before(() => {
 });
 
 test('download as stream', async t => {
-	const data = await getStreamAsBuffer(download('http://foo.bar/foo.zip'));
+	const data = await buffer(download('http://foo.bar/foo.zip'));
 	t.true(await isZip(data));
 });
 
@@ -91,7 +91,7 @@ test('preserves default got options when user passes undefined', async t => {
 });
 
 test('download a very large file', async t => {
-	const stream = await getStreamAsBuffer(download('http://foo.bar/large.bin'));
+	const stream = await buffer(download('http://foo.bar/large.bin'));
 	t.is(stream.length, 7_928_260);
 });
 

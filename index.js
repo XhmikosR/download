@@ -2,13 +2,13 @@ import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import {buffer, text} from 'node:stream/consumers';
 import {parse} from 'content-disposition';
 import archiveType from '@xhmikosr/archive-type';
 import decompress from '@xhmikosr/decompress';
 import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
-import getStream, {getStreamAsBuffer} from 'get-stream';
 import got from 'got';
 
 const defaultGotOptions = {
@@ -91,7 +91,7 @@ const download = (uri, output, options = {}) => {
 
 	const promise = (async () => {
 		const response = await filterEvents(stream, 'response');
-		const streamData = options.got.responseType === 'buffer' ? getStreamAsBuffer(stream) : getStream(stream);
+		const streamData = options.got.responseType === 'buffer' ? buffer(stream) : text(stream);
 		const data = await streamData;
 
 		const hasArchiveData = options.extract && await archiveType(data);
