@@ -75,48 +75,63 @@ const mergeDefinedOptions = (defaults, overrides = {}) => {
 	return merged;
 };
 
-const download = (uri, output, options = {}) => {
-	if (typeof output === 'object') {
-		options = output;
-		output = null;
+const validateOptions = options => {
+	if (typeof options !== 'object' || options === null) {
+		throw new TypeError('The second argument must be an options object. The destination directory is `options.dest`.');
 	}
+};
 
-	options = {
+const unsupportedStreamOptions = ['dest', 'filename', 'extract', 'decompress'];
+
+const buildStream = (uri, options) => {
+	validateOptions(options);
+
+	const mergedOptions = {
 		...options,
 		got: mergeDefinedOptions(defaultGotOptions, options.got),
 		decompress: options.decompress ?? {},
 	};
 
-	const stream = got.stream(uri, options.got);
-
-	const promise = (async () => {
-		const response = await filterEvents(stream, 'response');
-		const streamData = options.got.responseType === 'buffer' ? buffer(stream) : text(stream);
-		const data = await streamData;
-
-		const hasArchiveData = options.extract && await archiveType(data);
-
-		if (!output) {
-			return hasArchiveData ? decompress(data, options.decompress) : data;
-		}
-
-		const filename = options.filename || filenamify(await getFilename(response, data));
-		const outputFilepath = path.join(output, filename);
-
-		if (hasArchiveData) {
-			return decompress(data, path.dirname(outputFilepath), options.decompress);
-		}
-
-		await fs.mkdir(path.dirname(outputFilepath), {recursive: true});
-		await fs.writeFile(outputFilepath, data);
-		return data;
-	})();
-
-	// eslint-disable-next-line unicorn/no-thenable
-	stream.then = promise.then.bind(promise);
-	stream.catch = promise.catch.bind(promise);
-
-	return stream;
+	return {
+		stream: got.stream(uri, mergedOptions.got),
+		options: mergedOptions,
+	};
 };
 
-export default download;
+export const download = async (uri, options = {}) => {
+	const {stream, options: options_} = buildStream(uri, options);
+
+	const response = await filterEvents(stream, 'response');
+	const streamData = options_.got.responseType === 'buffer' ? buffer(stream) : text(stream);
+	const data = await streamData;
+
+	const hasArchiveData = options_.extract && await archiveType(data);
+
+	if (!options_.dest) {
+		return hasArchiveData ? decompress(data, options_.decompress) : data;
+	}
+
+	const filename = options_.filename || filenamify(await getFilename(response, data));
+	const outputFilepath = path.join(options_.dest, filename);
+
+	if (hasArchiveData) {
+		return decompress(data, path.dirname(outputFilepath), options_.decompress);
+	}
+
+	await fs.mkdir(path.dirname(outputFilepath), {recursive: true});
+	await fs.writeFile(outputFilepath, data);
+	return data;
+};
+
+export const downloadAsStream = (uri, options = {}) => {
+	validateOptions(options);
+
+	for (const key of unsupportedStreamOptions) {
+		if (options[key] !== undefined) {
+			throw new TypeError(`\`options.${key}\` is not supported by \`downloadAsStream\`.`);
+		}
+	}
+
+	const {stream} = buildStream(uri, options);
+	return stream;
+};
