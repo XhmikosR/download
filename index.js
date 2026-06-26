@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -63,6 +64,31 @@ const filterEvents = async (emitter, event) => {
 	}
 };
 
+const verifyHash = (data, hash) => {
+	if (!hash) {
+		return;
+	}
+
+	const colon = typeof hash === 'string' ? hash.indexOf(':') : -1;
+	const algorithm = colon === -1 ? '' : hash.slice(0, colon);
+	const value = colon === -1 ? '' : hash.slice(colon + 1);
+
+	if (!algorithm || !value) {
+		throw new Error('Invalid `hash` option, expected "<algorithm>:<hex>".');
+	}
+
+	let actual;
+	try {
+		actual = createHash(algorithm).update(data).digest('hex');
+	} catch {
+		throw new Error(`Unsupported hash algorithm: ${algorithm}`);
+	}
+
+	if (actual.toLowerCase() !== value.toLowerCase()) {
+		throw new Error(`Hash mismatch, expected ${algorithm} ${value.toLowerCase()} but got ${actual}`);
+	}
+};
+
 const mergeDefinedOptions = (defaults, overrides = {}) => {
 	const merged = {...defaults};
 
@@ -93,6 +119,8 @@ const download = (uri, output, options = {}) => {
 		const response = await filterEvents(stream, 'response');
 		const streamData = options.got.responseType === 'buffer' ? buffer(stream) : text(stream);
 		const data = await streamData;
+
+		verifyHash(data, options.hash);
 
 		const hasArchiveData = options.extract && await archiveType(data);
 

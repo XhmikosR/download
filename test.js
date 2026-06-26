@@ -1,7 +1,12 @@
 import {Buffer} from 'node:buffer';
-import {randomBytes} from 'node:crypto';
+import {createHash, randomBytes} from 'node:crypto';
 import events from 'node:events';
-import {access, mkdtemp, rm} from 'node:fs/promises';
+import {
+	access,
+	mkdtemp,
+	readFile,
+	rm,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {buffer} from 'node:stream/consumers';
@@ -15,27 +20,33 @@ import download from './index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const removeRecursive = async filePath => rm(filePath, {force: true, recursive: true});
+async function removeRecursive(filePath) {
+	return rm(filePath, {force: true, recursive: true});
+}
 
 // Unique output dir per test so concurrent tests don't clash
-const makeTempDir = async t => {
+async function makeTempDir(t) {
 	const dir = await mkdtemp(path.join(os.tmpdir(), 'downloader-test-'));
 	t.teardown(() => removeRecursive(dir));
 	return dir;
-};
+}
 
-const pathExists = async path => {
+async function pathExists(path) {
 	try {
 		await access(path);
 		return true;
 	} catch {
 		return false;
 	}
-};
+}
 
 async function isZip(input) {
 	const fileType = await fileTypeFromBuffer(input);
 	return fileType?.mime === 'application/zip';
+}
+
+async function fixtureHash(algorithm = 'sha256') {
+	return createHash(algorithm).update(await readFile(path.join(__dirname, 'fixture.zip'))).digest('hex');
 }
 
 test.before(() => {
@@ -221,4 +232,43 @@ test('do not add extension when content type is missing', async t => {
 	const output = await makeTempDir(t);
 	await download('http://foo.bar/mime-none', output);
 	t.true(await pathExists(path.join(output, 'mime-none')));
+});
+
+test('verify hash', async t => {
+	const data = await download('http://foo.bar/foo.zip', {hash: `sha256:${await fixtureHash()}`});
+	t.true(await isZip(data));
+});
+
+test('throw on hash mismatch', async t => {
+	await t.throwsAsync(
+		download('http://foo.bar/foo.zip', {hash: 'sha256:dead'}),
+		{message: /Hash mismatch/},
+	);
+});
+
+test('throw on unsupported hash algorithm', async t => {
+	await t.throwsAsync(
+		download('http://foo.bar/foo.zip', {hash: 'sha999:dead'}),
+		{message: /Unsupported hash algorithm/},
+	);
+});
+
+test('throw on malformed hash option', async t => {
+	await t.throwsAsync(
+		download('http://foo.bar/foo.zip', {hash: 'noseparator'}),
+		{message: /Invalid `hash` option/},
+	);
+	await t.throwsAsync(
+		download('http://foo.bar/foo.zip', {hash: 123}),
+		{message: /Invalid `hash` option/},
+	);
+});
+
+test('do not write a file when the hash does not match', async t => {
+	const output = await makeTempDir(t);
+	await t.throwsAsync(
+		download('http://foo.bar/foo.zip', output, {hash: 'sha256:dead'}),
+		{message: /Hash mismatch/},
+	);
+	t.false(await pathExists(path.join(output, 'foo.zip')));
 });
