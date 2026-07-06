@@ -1,6 +1,6 @@
 import {Buffer} from 'node:buffer';
 import {randomBytes} from 'node:crypto';
-import events from 'node:events';
+import {once} from 'node:events';
 import {access, mkdtemp, rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +8,7 @@ import {buffer} from 'node:stream/consumers';
 import {fileURLToPath} from 'node:url';
 import test from 'ava';
 import {fileTypeFromBuffer} from 'file-type';
+import {HTTPError} from 'ky';
 import nock from 'nock';
 import decompressUnzip from '@xhmikosr/decompress-unzip';
 import {download, downloadAsStream} from './index.js';
@@ -70,7 +71,10 @@ test.before(() => {
 		.get('/mime-multiple')
 		.reply(200, Buffer.from('plain body'), {'Content-Type': 'text/plain'})
 		.get('/mime-none')
-		.reply(200, Buffer.from('plain body'), {'Content-Type': ''});
+		.reply(200, Buffer.from('plain body'), {'Content-Type': ''})
+		.get('/with-header')
+		.matchHeader('x-custom', 'unicorn')
+		.replyWithFile(200, path.join(__dirname, 'fixture.zip'));
 
 	nock('https://foo.bar')
 		.persist()
@@ -84,7 +88,7 @@ test('download as stream', async t => {
 });
 
 test('download as text', async t => {
-	const data = await download('http://foo.bar/foo.js', {got: {responseType: 'text'}});
+	const data = await download('http://foo.bar/foo.js', {responseType: 'text'});
 	t.is(typeof data, 'string');
 });
 
@@ -93,8 +97,31 @@ test('download as promise', async t => {
 	t.true(await isZip(data));
 });
 
-test('preserves default got options when the user passes undefined', async t => {
-	const data = await download('http://foo.bar/foo.zip', {got: {responseType: undefined}});
+test('downloadAsStream emits a response event', async t => {
+	const stream = downloadAsStream('http://foo.bar/foo.zip');
+	const responsePromise = once(stream, 'response');
+	stream.resume();
+
+	const [response] = await responsePromise;
+	t.is(response.status, 200);
+	t.is(response.url, 'http://foo.bar/foo.zip');
+});
+
+test('downloadAsStream emits an error on 404', async t => {
+	const stream = downloadAsStream('http://foo.bar/404');
+	stream.resume();
+
+	const error = await t.throwsAsync(once(stream, 'end'), {instanceOf: HTTPError});
+	t.is(error.response.status, 404);
+});
+
+test('forwards options.ky to the request', async t => {
+	const data = await download('http://foo.bar/with-header', {ky: {headers: {'x-custom': 'unicorn'}}});
+	t.true(await isZip(data));
+});
+
+test('preserves default responseType when the user passes undefined', async t => {
+	const data = await download('http://foo.bar/foo.zip', {responseType: undefined});
 	t.true(await isZip(data));
 });
 
@@ -188,20 +215,6 @@ test('handle filename from file type', async t => {
 	const output = await makeTempDir(t);
 	await download('http://foo.bar/filetype', {dest: output});
 	t.true(await pathExists(path.join(output, 'filetype.zip')));
-});
-
-test.serial('handles falsy event payload in response listener', async t => {
-	const originalOn = events.on;
-	events.on = async function * () {
-		yield [undefined];
-	};
-
-	t.teardown(() => {
-		events.on = originalOn;
-	});
-
-	const data = await download('http://foo.bar/foo.js', {got: {responseType: 'text'}});
-	t.is(typeof data, 'string');
 });
 
 test('handle filename from mime type when file-type does not support it', async t => {

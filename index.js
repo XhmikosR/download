@@ -1,25 +1,38 @@
-import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import {buffer, text} from 'node:stream/consumers';
+import {Buffer} from 'node:buffer';
+import {Readable} from 'node:stream';
 import {parse} from 'content-disposition';
 import archiveType from '@xhmikosr/archive-type';
 import decompress from '@xhmikosr/decompress';
 import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
-import got from 'got';
+import ky from 'ky';
+import {Agent} from 'undici';
 
-const defaultGotOptions = {
-	responseType: 'buffer',
-	https: {
-		rejectUnauthorized: process.env.npm_config_strict_ssl !== 'false',
-	},
+const strictSsl = process.env.npm_config_strict_ssl !== 'false';
+
+let insecureDispatcher;
+
+const getInsecureFetch = () => {
+	insecureDispatcher ??= new Agent({connect: {rejectUnauthorized: false}});
+	return (input, init) => fetch(input, {...init, dispatcher: insecureDispatcher});
+};
+
+const buildKyOptions = (userKyOptions = {}) => {
+	const options = {...userKyOptions};
+
+	if (!strictSsl && options.fetch === undefined) {
+		options.fetch = getInsecureFetch();
+	}
+
+	return options;
 };
 
 const getExtFromMime = response => {
-	const header = response.headers['content-type'];
+	const header = response.headers.get('content-type');
 
 	if (!header) {
 		return null;
@@ -31,7 +44,7 @@ const getExtFromMime = response => {
 };
 
 const getFilename = async (response, data) => {
-	const header = response.headers['content-disposition'];
+	const header = response.headers.get('content-disposition');
 
 	if (header) {
 		const parsed = parse(header);
@@ -41,7 +54,7 @@ const getFilename = async (response, data) => {
 		}
 	}
 
-	let filename = path.basename(new URL(response.requestUrl).pathname);
+	let filename = path.basename(new URL(response.url).pathname);
 
 	if (!path.extname(filename)) {
 		const fileType = await fileTypeFromBuffer(data);
@@ -55,26 +68,6 @@ const getFilename = async (response, data) => {
 	return filename;
 };
 
-const filterEvents = async (emitter, event) => {
-	for await (const [message] of events.on(emitter, event)) {
-		if (message) {
-			return message;
-		}
-	}
-};
-
-const mergeDefinedOptions = (defaults, overrides = {}) => {
-	const merged = {...defaults};
-
-	for (const [key, value] of Object.entries(overrides)) {
-		if (value !== undefined) {
-			merged[key] = value;
-		}
-	}
-
-	return merged;
-};
-
 const validateOptions = options => {
 	if (typeof options !== 'object' || options === null) {
 		throw new TypeError('The second argument must be an options object. The destination directory is `options.dest`.');
@@ -83,39 +76,28 @@ const validateOptions = options => {
 
 const unsupportedStreamOptions = ['dest', 'filename', 'extract', 'decompress'];
 
-const buildStream = (uri, options) => {
+export const download = async (uri, options = {}) => {
 	validateOptions(options);
 
-	const mergedOptions = {
-		...options,
-		got: mergeDefinedOptions(defaultGotOptions, options.got),
-		decompress: options.decompress ?? {},
-	};
+	const {responseType = 'buffer'} = options;
+	const decompressOptions = options.decompress ?? {};
 
-	return {
-		stream: got.stream(uri, mergedOptions.got),
-		options: mergedOptions,
-	};
-};
+	const response = await ky(uri, buildKyOptions(options.ky));
+	const data = responseType === 'text'
+		? await response.text()
+		: Buffer.from(await response.arrayBuffer());
 
-export const download = async (uri, options = {}) => {
-	const {stream, options: options_} = buildStream(uri, options);
+	const hasArchiveData = options.extract && await archiveType(data);
 
-	const response = await filterEvents(stream, 'response');
-	const streamData = options_.got.responseType === 'buffer' ? buffer(stream) : text(stream);
-	const data = await streamData;
-
-	const hasArchiveData = options_.extract && await archiveType(data);
-
-	if (!options_.dest) {
-		return hasArchiveData ? decompress(data, options_.decompress) : data;
+	if (!options.dest) {
+		return hasArchiveData ? decompress(data, decompressOptions) : data;
 	}
 
-	const filename = options_.filename || filenamify(await getFilename(response, data));
-	const outputFilepath = path.join(options_.dest, filename);
+	const filename = options.filename || filenamify(await getFilename(response, data));
+	const outputFilepath = path.join(options.dest, filename);
 
 	if (hasArchiveData) {
-		return decompress(data, path.dirname(outputFilepath), options_.decompress);
+		return decompress(data, path.dirname(outputFilepath), decompressOptions);
 	}
 
 	await fs.mkdir(path.dirname(outputFilepath), {recursive: true});
@@ -132,6 +114,18 @@ export const downloadAsStream = (uri, options = {}) => {
 		}
 	}
 
-	const {stream} = buildStream(uri, options);
+	const kyOptions = buildKyOptions(options.ky);
+
+	async function * body() {
+		const response = await ky(uri, kyOptions);
+
+		stream.emit('response', response);
+
+		if (response.body) {
+			yield * Readable.fromWeb(response.body);
+		}
+	}
+
+	const stream = Readable.from(body());
 	return stream;
 };
