@@ -80,3 +80,15 @@ If set to `true`, try extracting the file using [`decompress`](https://github.co
 Type: `string`
 
 Name of the saved file.
+
+##### options.hash
+
+Type: `string`
+
+Expected hash of the downloaded data as `"<algorithm>:<hex>"`, checked before it's extracted or written. A mismatch throws. `algorithm` is any digest [`crypto.createHash`](https://nodejs.org/api/crypto.html#cryptocreatehashalgorithm-options) accepts.
+
+```js
+await download('http://unicorn.com/foo.tar.gz', 'dist', {
+	hash: 'sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
+});
+```
