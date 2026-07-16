@@ -47,14 +47,14 @@
 		"content-disposition": "^2.0.1",
 		"ext-name": "^5.0.0",
 		"file-type": "^21.3.4",
-		"filenamify": "^7.0.1",
+		"filenamify": "^7.0.2",
 		"got": "^14.6.6"
 	},
 	"devDependencies": {
-		"@xhmikosr/decompress-unzip": "^8.2.0",
+		"@xhmikosr/decompress-unzip": "^8.2.1",
 		"ava": "^7.0.0",
 		"c8": "^11.0.0",
-		"nock": "^14.0.15",
+		"nock": "^14.0.16",
 		"xo": "^2.0.2"
 	},
 	"xo": {
@@ -62,5 +62,8 @@
 			"promise/prefer-await-to-then": "off",
 			"unicorn/prevent-abbreviations": "off"
 		}
+	},
+	"allowScripts": {
+		"unrs-resolver@1.11.1": true
 	}
 }
