@@ -176,6 +176,37 @@ test('follow redirect to https', async t => {
 	t.true(await isZip(data));
 });
 
+test('strips credentials on an https -> http redirect downgrade', async t => {
+	let sentAuth = 'unset';
+	nock('https://cred.test')
+		.get('/start')
+		.reply(302, null, {location: 'http://cred.test/end'});
+	nock('http://cred.test')
+		.get('/end')
+		.reply(function () {
+			sentAuth = this.req.headers.authorization;
+			return [200, Buffer.from('ok')];
+		});
+
+	await download('https://cred.test/start', {got: {headers: {authorization: 'secret', cookie: 'session=1'}}});
+	t.is(sentAuth, undefined);
+});
+
+test('keeps credentials on a same-scheme redirect', async t => {
+	let sentAuth = 'unset';
+	nock('http://cred2.test')
+		.get('/start')
+		.reply(302, null, {location: 'http://cred2.test/end'})
+		.get('/end')
+		.reply(function () {
+			sentAuth = this.req.headers.authorization;
+			return [200, Buffer.from('ok')];
+		});
+
+	await download('http://cred2.test/start', {got: {headers: {authorization: 'secret'}}});
+	t.is(sentAuth, 'secret');
+});
+
 test('handle query string', async t => {
 	const output = await makeTempDir(t);
 	await download('http://foo.bar/querystring.zip?param=value', output);

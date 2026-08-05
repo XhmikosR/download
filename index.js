@@ -19,6 +19,18 @@ const defaultGotOptions = {
 	https: {
 		rejectUnauthorized: process.env.npm_config_strict_ssl !== 'false',
 	},
+	hooks: {
+		beforeRedirect: [
+			(options, response) => {
+				// Don't carry credentials across an https -> http downgrade
+				const from = response.requestUrl ?? response.url;
+				if (from && new URL(from).protocol === 'https:' && options.url.protocol === 'http:') {
+					delete options.headers.authorization;
+					delete options.headers.cookie;
+				}
+			},
+		],
+	},
 };
 
 const getExtFromMime = response => {

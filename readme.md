@@ -42,6 +42,10 @@ TLS certificate verification is enabled by default. It honors npm's [`strict-ssl
 
 Downloads abort after 30 seconds of socket inactivity so a stalled connection cannot hang forever. Override per call with [`options.got.timeout`](https://github.com/sindresorhus/got/blob/main/documentation/6-timeout.md).
 
+### Redirects
+
+Redirects are followed. `Authorization` and `Cookie` headers are stripped when a redirect downgrades from HTTPS to HTTP, so credentials are not sent in cleartext.
+
 ## API
 
 ### download(url, destination?, options?)
