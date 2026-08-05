@@ -59,6 +59,7 @@
 	},
 	"xo": {
 		"rules": {
+			"capitalized-comments": "off",
 			"promise/prefer-await-to-then": "off",
 			"require-unicode-regexp": "off",
 			"unicorn/prevent-abbreviations": "off"

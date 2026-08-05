@@ -14,6 +14,8 @@ import got from 'got';
 
 const defaultGotOptions = {
 	responseType: 'buffer',
+	// Abort an idle socket so a stalled server can't hang forever
+	timeout: {socket: 30_000},
 	https: {
 		rejectUnauthorized: process.env.npm_config_strict_ssl !== 'false',
 	},

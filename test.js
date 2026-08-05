@@ -1,6 +1,7 @@
 import {Buffer} from 'node:buffer';
 import {createHash, randomBytes} from 'node:crypto';
 import events from 'node:events';
+import http from 'node:http';
 import {
 	access,
 	mkdtemp,
@@ -261,6 +262,23 @@ test('throw on malformed hash option', async t => {
 	await t.throwsAsync(
 		download('http://foo.bar/foo.zip', {hash: 123}),
 		{message: /Invalid `hash` option/},
+	);
+});
+
+test('aborts a stalled connection via the socket timeout', async t => {
+	// nock can't simulate socket inactivity, so use a server that never responds
+	const server = http.createServer();
+	await new Promise(resolve => {
+		server.listen(0, '127.0.0.1', resolve);
+	});
+	t.teardown(() => new Promise(resolve => {
+		server.close(resolve);
+	}));
+
+	const {port} = server.address();
+	await t.throwsAsync(
+		download(`http://127.0.0.1:${port}/`, {got: {timeout: {socket: 100}}}),
+		{name: 'TimeoutError'},
 	);
 });
 

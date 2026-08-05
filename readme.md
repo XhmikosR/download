@@ -38,6 +38,10 @@ To work with proxies, read the [`got documentation`](https://github.com/sindreso
 
 TLS certificate verification is enabled by default. It honors npm's [`strict-ssl`](https://docs.npmjs.com/cli/v11/using-npm/config#strict-ssl) config, so running `npm config set strict-ssl false` disables it for self-signed certificates or proxy setups. Override per call with [`options.got.https.rejectUnauthorized`](https://github.com/sindresorhus/got/blob/v14.6.6/documentation/5-https.md).
 
+### Timeouts
+
+Downloads abort after 30 seconds of socket inactivity so a stalled connection cannot hang forever. Override per call with [`options.got.timeout`](https://github.com/sindresorhus/got/blob/main/documentation/6-timeout.md).
+
 ## API
 
 ### download(url, destination?, options?)
