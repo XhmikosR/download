@@ -313,6 +313,13 @@ test('aborts a stalled connection via the socket timeout', async t => {
 	);
 });
 
+test('a stream consumer sees a hash mismatch instead of unverified data', async t => {
+	await t.throwsAsync(
+		buffer(download('http://foo.bar/foo.zip', {hash: 'sha256:dead'})),
+		{message: /Hash mismatch/},
+	);
+});
+
 test('do not write a file when the hash does not match', async t => {
 	const output = await makeTempDir(t);
 	await t.throwsAsync(

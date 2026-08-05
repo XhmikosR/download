@@ -3,6 +3,7 @@ import events from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import {Transform} from 'node:stream';
 import {buffer, text} from 'node:stream/consumers';
 import {parse} from 'content-disposition';
 import archiveType from '@xhmikosr/archive-type';
@@ -78,11 +79,7 @@ const filterEvents = async (emitter, event) => {
 	}
 };
 
-const verifyHash = (data, hash) => {
-	if (!hash) {
-		return;
-	}
-
+const parseHash = hash => {
 	const colon = typeof hash === 'string' ? hash.indexOf(':') : -1;
 	const algorithm = colon === -1 ? '' : hash.slice(0, colon);
 	const value = colon === -1 ? '' : hash.slice(colon + 1);
@@ -91,16 +88,54 @@ const verifyHash = (data, hash) => {
 		throw new Error('Invalid `hash` option, expected "<algorithm>:<hex>".');
 	}
 
-	let actual;
 	try {
-		actual = createHash(algorithm).update(data).digest('hex');
+		return {algorithm, value, hasher: createHash(algorithm)};
 	} catch {
 		throw new Error(`Unsupported hash algorithm: ${algorithm}`);
 	}
+};
 
-	if (actual.toLowerCase() !== value.toLowerCase()) {
-		throw new Error(`Hash mismatch, expected ${algorithm} ${value.toLowerCase()} but got ${actual}`);
+// Hash the body as it flows so a stream consumer can't read past an unverified body;
+// a mismatch errors the stream itself, not only the awaited promise.
+const verifyingStream = (source, hash) => {
+	let parsed;
+	let parseError;
+
+	try {
+		parsed = parseHash(hash);
+	} catch (error) {
+		parseError = error;
 	}
+
+	const check = new Transform({
+		transform(chunk, encoding, callback) {
+			if (parseError) {
+				callback(parseError);
+				return;
+			}
+
+			parsed.hasher.update(chunk);
+			callback(null, chunk);
+		},
+		flush(callback) {
+			if (parseError) {
+				callback(parseError);
+				return;
+			}
+
+			const actual = parsed.hasher.digest('hex');
+			if (actual.toLowerCase() !== parsed.value.toLowerCase()) {
+				callback(new Error(`Hash mismatch, expected ${parsed.algorithm} ${parsed.value.toLowerCase()} but got ${actual}`));
+				return;
+			}
+
+			callback();
+		},
+	});
+
+	source.once('error', error => check.destroy(error));
+	source.pipe(check);
+	return check;
 };
 
 const mergeDefinedOptions = (defaults, overrides = {}) => {
@@ -127,14 +162,13 @@ const download = (uri, output, options = {}) => {
 		decompress: options.decompress ?? {},
 	};
 
-	const stream = got.stream(uri, options.got);
+	const source = got.stream(uri, options.got);
+	const stream = options.hash ? verifyingStream(source, options.hash) : source;
 
 	const promise = (async () => {
-		const response = await filterEvents(stream, 'response');
+		const response = await filterEvents(source, 'response');
 		const streamData = options.got.responseType === 'buffer' ? buffer(stream) : text(stream);
 		const data = await streamData;
-
-		verifyHash(data, options.hash);
 
 		const hasArchiveData = options.extract && await archiveType(data);
 
@@ -153,6 +187,10 @@ const download = (uri, output, options = {}) => {
 		await fs.writeFile(outputFilepath, data);
 		return data;
 	})();
+
+	// Swallow the eager promise's rejection so a stream-only consumer can't raise an
+	// unhandled rejection; callers still get it via stream.then/catch.
+	promise.catch(error => error);
 
 	// eslint-disable-next-line unicorn/no-thenable
 	stream.then = promise.then.bind(promise);
