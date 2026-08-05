@@ -266,6 +266,18 @@ test('do not add extension when content type is missing', async t => {
 	t.true(await pathExists(path.join(output, 'mime-none')));
 });
 
+test('rejects a response larger than maxSize', async t => {
+	await t.throwsAsync(
+		download('http://foo.bar/large.bin', {maxSize: 1000}),
+		{message: /maxSize/},
+	);
+});
+
+test('allows a response within maxSize', async t => {
+	const data = await download('http://foo.bar/foo.zip', {maxSize: 10_000_000});
+	t.true(await isZip(data));
+});
+
 test('verify hash', async t => {
 	const data = await download('http://foo.bar/foo.zip', {hash: `sha256:${await fixtureHash()}`});
 	t.true(await isZip(data));

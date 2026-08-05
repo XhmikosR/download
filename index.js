@@ -138,6 +138,26 @@ const verifyingStream = (source, hash) => {
 	return check;
 };
 
+// Cap the buffered body so a decompression/redirect bomb can't exhaust memory
+const cappingStream = (source, maxSize) => {
+	let seen = 0;
+	const cap = new Transform({
+		transform(chunk, encoding, callback) {
+			seen += chunk.length;
+			if (seen > maxSize) {
+				callback(new Error(`Response body exceeded the maxSize limit of ${maxSize} bytes`));
+				return;
+			}
+
+			callback(null, chunk);
+		},
+	});
+
+	source.once('error', error => cap.destroy(error));
+	source.pipe(cap);
+	return cap;
+};
+
 const mergeDefinedOptions = (defaults, overrides = {}) => {
 	const merged = {...defaults};
 
@@ -163,7 +183,14 @@ const download = (uri, output, options = {}) => {
 	};
 
 	const source = got.stream(uri, options.got);
-	const stream = options.hash ? verifyingStream(source, options.hash) : source;
+	let stream = source;
+	if (options.maxSize) {
+		stream = cappingStream(stream, options.maxSize);
+	}
+
+	if (options.hash) {
+		stream = verifyingStream(stream, options.hash);
+	}
 
 	const promise = (async () => {
 		const response = await filterEvents(source, 'response');
