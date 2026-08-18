@@ -11,12 +11,68 @@ import extName from 'ext-name';
 import {fileTypeFromBuffer} from 'file-type';
 import filenamify from 'filenamify';
 import got from 'got';
+import {HttpProxyAgent, HttpsProxyAgent} from 'hpagent';
 
 const defaultGotOptions = {
 	responseType: 'buffer',
 	https: {
 		rejectUnauthorized: process.env.npm_config_strict_ssl !== 'false',
 	},
+};
+
+const defaultPorts = {'http:': '80', 'https:': '443'};
+
+// npm exports its config as `npm_config_<key>`, and its no-proxy key is `noproxy`
+const getEnv = (...names) => {
+	for (const name of names) {
+		const value = process.env[name] ?? process.env[name.toUpperCase()];
+
+		if (value) {
+			return value.trim();
+		}
+	}
+
+	return '';
+};
+
+const getProxyUrl = url => url.protocol === 'https:'
+	? getEnv('https_proxy', 'npm_config_https_proxy', 'http_proxy', 'npm_config_proxy', 'all_proxy')
+	: getEnv('http_proxy', 'npm_config_proxy', 'all_proxy');
+
+const shouldProxy = url => {
+	// npm joins a multi-entry `noproxy` with newlines, so whitespace separates too
+	const entries = getEnv('no_proxy', 'npm_config_noproxy').split(/[\s,]+/).filter(Boolean);
+
+	if (entries.includes('*')) {
+		return false;
+	}
+
+	const port = url.port || defaultPorts[url.protocol];
+
+	return !entries.some(entry => {
+		const [rawHost, rawPort] = entry.replace(/^\*?\.?/, '').split(':');
+		const host = rawHost.toLowerCase();
+
+		if (rawPort && rawPort !== port) {
+			return false;
+		}
+
+		return url.hostname === host || url.hostname.endsWith(`.${host}`);
+	});
+};
+
+const getProxyAgents = uri => {
+	const url = new URL(uri);
+	const proxy = shouldProxy(url) ? getProxyUrl(url) : '';
+
+	if (!proxy) {
+		return undefined;
+	}
+
+	return {
+		http: new HttpProxyAgent({proxy, keepAlive: false}),
+		https: new HttpsProxyAgent({proxy, keepAlive: false}),
+	};
 };
 
 const getExtFromMime = response => {
@@ -109,7 +165,7 @@ const download = (uri, output, options = {}) => {
 
 	options = {
 		...options,
-		got: mergeDefinedOptions(defaultGotOptions, options.got),
+		got: mergeDefinedOptions({...defaultGotOptions, agent: getProxyAgents(uri)}, options.got),
 		decompress: options.decompress ?? {},
 	};
 

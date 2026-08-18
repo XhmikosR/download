@@ -48,7 +48,8 @@
 		"ext-name": "^5.0.0",
 		"file-type": "^21.3.4",
 		"filenamify": "^7.0.2",
-		"got": "^14.6.6"
+		"got": "^14.6.6",
+		"hpagent": "^1.2.0"
 	},
 	"devDependencies": {
 		"@xhmikosr/decompress-unzip": "^8.2.1",
@@ -59,6 +60,13 @@
 	},
 	"xo": {
 		"rules": {
+			"camelcase": [
+				"error",
+				{
+					"properties": "never"
+				}
+			],
+			"capitalized-comments": "off",
 			"promise/prefer-await-to-then": "off",
 			"require-unicode-regexp": "off",
 			"unicorn/prevent-abbreviations": "off"

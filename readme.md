@@ -32,7 +32,27 @@ import download from '@xhmikosr/downloader';
 
 ### Proxies
 
-To work with proxies, read the [`got documentation`](https://github.com/sindresorhus/got/blob/main/documentation/tips.md#proxying).
+Proxy settings are picked up automatically from the environment and from npm's config, so `npm config set proxy` or an `HTTPS_PROXY` env var is enough.
+
+The first one set wins, for an `https:` URL:
+
+```text
+https_proxy, npm_config_https_proxy, http_proxy, npm_config_proxy, all_proxy
+```
+
+and for an `http:` URL:
+
+```text
+http_proxy, npm_config_proxy, all_proxy
+```
+
+Uppercase names work too and an empty value counts as unset. Credentials in the proxy URL are sent as `Proxy-Authorization`.
+
+Hosts listed in `no_proxy` or npm's [`noproxy`](https://docs.npmjs.com/cli/v11/using-npm/config#noproxy) go direct. Entries are separated by commas or whitespace, `*` bypasses everything, a leading `.` or `*.` matches subdomains, and an entry can pin a port (`example.com:8080`). A redirect keeps whatever was decided for the original URL.
+
+`http:` downloads are tunneled with `CONNECT` as well, so a proxy that only allows `CONNECT` to port 443 will refuse them.
+
+Pass [`options.got.agent`](https://github.com/sindresorhus/got/blob/v14.6.6/documentation/2-options.md#agent) to override the resolved agent, or set it to `{http: false, https: false}` to opt out.
 
 ### SSL
 
